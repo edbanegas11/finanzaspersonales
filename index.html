@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finanzas Personales</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <header>
+      <h1>Finanzas Personales</h1>
+      <p>Control de ingresos y gastos diarios</p>
+    </header>
+
+    <div class="balance-card">
+      <h2>Saldo Disponible</h2>
+      <div class="main-balance" id="balance">L 0.00</div>
+      <div class="summary-container">
+        <div class="summary-item income">
+          <span>Ingresos</span>
+          <p id="total-income">+L 0.00</p>
+        </div>
+        <div class="summary-item expense">
+          <span>Gastos</span>
+          <p id="total-expenses">-L 0.00</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="transaction-form">
+      <h3>Nueva Transacción</h3>
+      <form id="form">
+        <div class="form-group">
+          <label for="description">Descripción</label>
+          <input type="text" id="description" placeholder="Ej. Sueldo IHCI, Comida, Pago de energia..." required />
+        </div>
+        <div class="form-group">
+          <label for="amount">Monto (L)</label>
+          <input type="number" id="amount" step="0.01" placeholder="0.00" required />
+        </div>
+        <div class="form-group">
+          <label>Tipo de movimiento</label>
+          <div class="type-buttons">
+            <button type="button" class="type-btn active" data-type="income">Ingreso</button>
+            <button type="button" class="type-btn" data-type="expense">Gasto</button>
+          </div>
+        </div>
+        <button type="submit" class="btn-submit">Agregar Registro</button>
+      </form>
+    </div>
+
+    <div class="history-container">
+      <h3>Historial de Movimientos</h3>
+      <ul id="transaction-list" class="transaction-list">
+        </ul>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
