@@ -1,108 +1,1143 @@
-// Estado de la aplicación (Carga datos previos si existen)
-let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
-let currentType = 'income';
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { 
+    getFirestore, 
+    collection, 
+    addDoc, 
+    doc, 
+    getDoc,    
+    setDoc,    
+    updateDoc, 
+    deleteDoc, 
+    query, 
+    orderBy, 
+    onSnapshot, 
+    serverTimestamp 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// Elementos capturados del DOM
-const balanceEl = document.getElementById('balance');
-const totalIncomeEl = document.getElementById('total-income');
-const totalExpensesEl = document.getElementById('total-expenses');
-const form = document.getElementById('form');
-const descriptionInput = document.getElementById('description');
-const amountInput = document.getElementById('amount');
-const typeButtons = document.querySelectorAll('.type-btn');
-const transactionList = document.getElementById('transaction-list');
+// --- NUEVA CONFIGURACIÓN DE TU BASE DE DATOS FINANZAS PERSONALES ---
+const firebaseConfig = {
+  apiKey: "AIzaSyBdUkV8zNFcI55eyJR2zcobf216uYJOXcc",
+  authDomain: "finanzaspersonales-d1097.firebaseapp.com",
+  projectId: "finanzaspersonales-d1097",
+  storageBucket: "finanzaspersonales-d1097.firebasestorage.app",
+  messagingSenderId: "610432640448",
+  appId: "1:610432640448:web:e83e0bdeb567326cc5d425"
+};
 
-// Intercambiar tipo de transacción (Ingreso / Gasto)
-typeButtons.forEach(btn => {
-  btn.addEventListener('click', () => {
-    typeButtons.forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentType = btn.getAttribute('data-type');
-  });
-});
+// Inicializar Firebase con el nuevo proyecto
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const USER_ID = "admin_horizonte";
 
-// Registrar nuevo movimiento
-form.addEventListener('submit', (e) => {
-  e.preventDefault();
+// --- ESTADO LOCAL ---
+let localTransactions = [];
+let reportSubView = 'income';
+let unidadesConfig = ['Hyundai County', 'Toyota Hiace'];
+let catEgresos = ['Combustible', 'Sueldos y Viáticos', 'Repuestos', 'Mantenimiento', 'Gastos de Operaciones'];
+let catIngresos = []; // Valores por defecto
 
-  const description = descriptionInput.value.trim();
-  const amount = parseFloat(amountInput.value);
-
-  if (description === '' || isNaN(amount) || amount <= 0) return;
-
-  // Creamos el objeto de la transacción
-  const transaction = {
-    id: Date.now(),
-    description,
-    // Si es gasto, el valor se almacena como negativo para la matemática directa
-    amount: currentType === 'expense' ? -amount : amount,
-    type: currentType,
-    date: new Date().toLocaleDateString('es-ES', { hour: '2-digit', minute: '2-digit' })
-  };
-
-  transactions.push(transaction);
-  
-  sincronizarApp();
-  
-  // Limpiar inputs del formulario
-  descriptionInput.value = '';
-  amountInput.value = '';
-});
-
-// Eliminar un registro específico
-function deleteTransaction(id) {
-  transactions = transactions.filter(t => t.id !== id);
-  sincronizarApp();
-}
-
-// Calcular balances y actualizar interfaz
-// Calcular balances y actualizar interfaz en Lempiras
-function calcularYRenderizar() {
-  transactionList.innerHTML = '';
-
-  let balanceTotal = 0;
-  let ingresosTotales = 0;
-  let gastosTotales = 0;
-
-  transactions.forEach(t => {
-    balanceTotal += t.amount;
+// Filtro global analítico
+const getFilteredTransactions = () => {
+    const filterValue = document.getElementById('global-filter')?.value || 'all';
     
-    if (t.type === 'income') {
-      ingresosTotales += t.amount;
-    } else {
-      gastosTotales += Math.abs(t.amount);
+    if (filterValue === 'all') return localTransactions;
+
+    return localTransactions.filter(t => {
+        return t.date && t.date.startsWith(filterValue);
+    });
+};
+
+window.updateFilterOptions = () => {
+    const filterSelect = document.getElementById('global-filter');
+    if (!filterSelect) return;
+
+    // 1. Obtener el mes actual en formato "YYYY-MM" (ej: 2026-02)
+    const hoy = new Date();
+    const mesActual = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0');
+
+    // 2. Extraer periodos únicos de las transacciones
+    const periods = [...new Set(localTransactions
+        .filter(t => t.date)
+        .map(t => t.date.substring(0, 7))
+    )].sort().reverse();
+
+    const years = [...new Set(periods.map(p => p.substring(0, 4)))].sort().reverse();
+
+    // 3. Construir el HTML
+    let optionsHtml = `<option value="all">Ver Todo el Histórico</option>`;
+
+    if (years.length > 0) {
+        optionsHtml += `<optgroup label="Años">`;
+        years.forEach(year => {
+            optionsHtml += `<option value="${year}">Todo el año ${year}</option>`;
+        });
+        optionsHtml += `</optgroup>`;
     }
 
-    // Insertar elemento visual en el historial usando 'L'
-    const li = document.createElement('li');
-    li.className = `transaction-item ${t.type}`;
-    li.innerHTML = `
-      <div class="item-info">
-        <div class="name">${t.description}</div>
-        <div class="date">${t.date}</div>
-      </div>
-      <div class="item-amount ${t.type}">
-        ${t.type === 'income' ? '+' : '-'}L ${Math.abs(t.amount).toFixed(2)}
-        <button class="btn-delete" onclick="deleteTransaction(${t.id})">&times;</button>
-      </div>
+    if (periods.length > 0) {
+        optionsHtml += `<optgroup label="Meses">`;
+        periods.forEach(period => {
+            const [year, month] = period.split('-');
+            const dateObj = new Date(year, parseInt(month) - 1);
+            const monthName = dateObj.toLocaleString('es-HN', { month: 'long' }).toUpperCase();
+            
+            // Si el periodo coincide con el mes actual, le ponemos 'selected'
+            const isSelected = (period === mesActual) ? 'selected' : '';
+            optionsHtml += `<option value="${period}" ${isSelected}>${monthName} ${year}</option>`;
+        });
+        optionsHtml += `</optgroup>`;
+    }
+
+    filterSelect.innerHTML = optionsHtml;
+
+    // 4. Si después de cargar, el selector quedó en "Ver Todo" pero existe el mes actual, lo forzamos
+    if (filterSelect.value === 'all' && periods.includes(mesActual)) {
+        filterSelect.value = mesActual;
+    }
+};
+
+/// --- 1. ACCIONES DE FIREBASE ---
+window.saveIncome = async () => {
+    const elAmount = document.getElementById('in-amount');
+    const elUnit = document.getElementById('in-unit');
+    const elCategory = document.getElementById('in-category');
+    const elDesc = document.getElementById('in-description'); 
+    const elDate = document.getElementById('in-date'); // <--- CAPTURAR FECHA
+
+    if (!elAmount.value || !elUnit.value || !elCategory.value || !elDate.value) {
+        return alert("⚠️ Faltan datos: Por favor llena todos los campos, incluida la fecha.");
+    }
+
+    try {
+        await addDoc(collection(db, 'usuarios', USER_ID, 'movimientos'), {
+            type: 'income',
+            description: elDesc && elDesc.value.trim() ? elDesc.value.trim().toUpperCase() : elCategory.value.trim().toUpperCase(), 
+            amount: parseFloat(elAmount.value),
+            category: elCategory.value,
+            unit: elUnit.value,
+            date: elDate.value, // <--- USA LA FECHA DEL INPUT (YYYY-MM-DD)
+            createdAt: serverTimestamp()
+        });
+
+        // Limpieza
+        elAmount.value = '';        
+        if(elDesc) elDesc.value = ''; 
+        elUnit.selectedIndex = 0;   
+        elCategory.selectedIndex = 0;
+        // Opcional: No limpiar la fecha para facilitar ingresos múltiples del mismo día
+
+        if (typeof fetchTransactions === 'function') await fetchTransactions();
+        showView('dashboard'); 
+        
+    } catch (e) { 
+        console.error("Error al guardar:", e); 
+        alert("❌ No se pudo guardar el ingreso");
+    }
+};
+
+// Asegúrate de agregar "window." al principio
+window.editTransaction = (id) => {
+    const t = localTransactions.find(item => item.id === id);
+    if (!t) return;
+
+    const modal = document.getElementById('modal-edit');
+    const unitSelect = document.getElementById('edit-unit');
+    const catContainer = document.getElementById('edit-cat-container');
+    const title = document.getElementById('edit-title');
+
+    document.getElementById('edit-id').value = id;
+
+    // Llenar unidades
+    unitSelect.innerHTML = unidadesConfig.map(u => 
+        `<option value="${u}" ${u === t.unit ? 'selected' : ''}>${u}</option>`
+    ).join('');
+
+    // --- BLOQUE DE FECHA (Con tamaño de fuente para evitar zoom en iOS) ---
+    const dateHTML = `
+        <div class="mb-4 bg-blue-50/30 p-3 rounded-2xl border border-blue-100">
+            <p class="text-[10px] font-black uppercase text-blue-500 ml-2 mb-1">Fecha del Movimiento</p>
+            <input type="date" id="edit-date" value="${t.date || ''}" 
+                class="w-full bg-transparent font-bold outline-none text-blue-600" style="font-size: 16px;">
+        </div>
     `;
-    transactionList.appendChild(li);
-  });
 
-  // Mostrar los resultados formateados en Lempiras
-  balanceEl.textContent = `${balanceTotal < 0 ? '-' : ''}L ${Math.abs(balanceTotal).toFixed(2)}`;
+    if (t.type === 'income') {
+        title.innerText = "Editar Ingreso";
+        title.className = "text-xl font-black text-emerald-600 uppercase italic tracking-tighter";
+        
+        catContainer.innerHTML = dateHTML + `
+            <div class="space-y-4">
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p class="text-[10px] font-black uppercase text-slate-400 ml-1 mb-1">Monto Lps</p>
+                    <input type="number" id="edit-amount-income" value="${t.amount}" inputmode="decimal"
+                        class="w-full bg-transparent font-black text-2xl outline-none text-emerald-600" style="font-size: 24px;">
+                </div>
+                <div>
+                    <p class="text-[10px] font-black uppercase text-slate-400 ml-2 mb-1">Descripción de Viaje</p>
+                    <input type="text" id="edit-description-income" value="${t.description || ''}" 
+                        oninput="this.value = this.value.toUpperCase()"
+                        class="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none border border-slate-100 uppercase" style="font-size: 16px;">
+                </div>
+                <div>
+                    <p class="text-[10px] font-black uppercase text-slate-400 ml-2 mb-1">Categoría</p>
+                    <select id="edit-category-income" class="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none border border-slate-100" style="font-size: 16px;">
+                        ${catIngresos.map(c => `<option value="${c}" ${c === t.category ? 'selected' : ''}>${c}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+        `;
+    } else {
+        title.innerText = "Editar Gasto";
+title.classList.remove('text-blue-600'); // Limpiamos colores previos
+title.classList.add('text-rose-600');
+
+catContainer.innerHTML = dateHTML + `
+    <div class="flex items-center gap-2 mb-3 mt-2">
+        <div class="h-[1px] flex-1 bg-slate-100"></div>
+        <p class="text-[10px] font-black uppercase text-slate-400 italic tracking-widest">Detalle de Gastos</p>
+        <div class="h-[1px] flex-1 bg-slate-100"></div>
+    </div>
+    
+    <div id="edit-list-wrapper" class="space-y-3">
+        ${catEgresos.map(cat => {
+            const esMismaCat = (t.category === cat);
+            return `
+                <div id="edit-card-${cat.replace(/\s+/g, '')}" 
+                     class="p-4 rounded-[2rem] border-2 transition-all duration-300 
+                     ${esMismaCat ? 'border-rose-300 bg-rose-50/50 shadow-sm' : 'border-slate-50 bg-slate-50/30'}">
+                    
+                    <span class="text-[10px] font-black uppercase ${esMismaCat ? 'text-rose-600' : 'text-slate-400'} ml-1">
+                        ${cat}
+                    </span>
+                    
+                    <div class="flex gap-2 mt-2">
+                        <input type="text" data-edit-desc="${cat}" 
+                            value="${esMismaCat ? (t.description || '') : ''}"
+                            oninput="this.value = this.value.toUpperCase()"
+                            placeholder="DESCRIPCIÓN"
+                            class="flex-1 p-3 bg-white rounded-xl text-[15px] font-bold outline-none border border-slate-200 focus:border-rose-200 uppercase">
+                        
+                        <input type="number" step="0.01" data-cat="${cat}" 
+                            value="${esMismaCat ? t.amount : ''}" 
+                            inputmode="decimal"
+                            placeholder="0.00"
+                            class="edit-expense-input w-28 p-3 bg-white rounded-xl text-right font-black text-rose-600 outline-none border border-slate-200 focus:border-rose-300 text-[15px]">
+                    </div>
+                </div>`;
+        }).join('')}
+    </div>
+`;
+        
+        // --- Lógica de Auto-Scroll ---
+        setTimeout(() => {
+    const activeCard = document.getElementById(`edit-card-${t.category.replace(/\s+/g, '')}`);
+    if (activeCard) {
+        activeCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Al tocar un input, centramos la tarjeta para que el teclado de iOS no la tape
+    const inputs = document.querySelectorAll('#edit-main-content input');
+    inputs.forEach(inp => {
+        inp.addEventListener('focus', (e) => {
+            setTimeout(() => {
+                e.target.closest('[id^="edit-card-"]').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        });
+    });
+}, 200);
+    }
+    
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden'; // Bloquea scroll del fondo
+};
+
+window.closeEditModal = () => {
+    const modal = document.getElementById('modal-edit');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto'; // Libera scroll
+    }
+};
+
+// --- ELIMINAR TRANSACCIÓN ---
+window.deleteTransaction = async (id) => {
+    // Confirmación de seguridad
+    if (confirm("¿Estás seguro de que deseas eliminar este movimiento? Esta acción no se puede deshacer.")) {
+        try {
+            // Referencia al documento específico
+            const docRef = doc(db, 'usuarios', USER_ID, 'movimientos', id);
+            
+            // Ejecutar eliminación en Firebase
+            await deleteDoc(docRef);
+            
+            
+        } catch (e) {
+            console.error("Error al eliminar:", e);
+            alert("No se pudo eliminar el registro: " + e.message);
+        }
+    }
+};
+
+// Guardar los cambios en Firebase
+window.updateTransactionFirebase = async () => {
+    const id = document.getElementById('edit-id')?.value;
+    const unit = document.getElementById('edit-unit')?.value;
+    const newDate = document.getElementById('edit-date')?.value; // <--- CAPTURAMOS LA FECHA EDITADA
+    const tOriginal = localTransactions.find(item => item.id === id);
+    
+    if (!id || !tOriginal) return;
+
+    let updateData = { 
+        unit: unit || tOriginal.unit,
+        date: newDate || tOriginal.date // <--- ACTUALIZAMOS LA FECHA
+    };
+
+    if (tOriginal.type === 'income') {
+        const elAmt = document.getElementById('edit-amount-income');
+        const elCat = document.getElementById('edit-category-income');
+        const elDesc = document.getElementById('edit-description-income');
+
+        const amt = elAmt ? parseFloat(elAmt.value) : tOriginal.amount;
+        const cat = elCat ? elCat.value : tOriginal.category;
+        const desc = elDesc ? elDesc.value.trim() : "";
+
+        updateData.amount = amt || 0;
+        updateData.category = cat;
+        updateData.description = desc ? desc.toUpperCase() : (cat ? cat.toUpperCase() : tOriginal.description);
+        
+    } else {
+        const inputs = document.querySelectorAll('.edit-expense-input');
+        let totalEncontrado = 0;
+        let catEncontrada = '';
+        let descEncontrada = '';
+        
+        inputs.forEach(inp => {
+            const val = parseFloat(inp.value) || 0;
+            if (val > 0) {
+                totalEncontrado = val;
+                catEncontrada = inp.dataset.cat;
+                const inputDesc = document.querySelector(`[data-edit-desc="${catEncontrada}"]`);
+                descEncontrada = inputDesc ? inputDesc.value.trim().toUpperCase() : '';
+            }
+        });
+        
+        updateData.amount = totalEncontrado || tOriginal.amount;
+        updateData.category = catEncontrada || tOriginal.category;
+        updateData.description = descEncontrada || (catEncontrada || tOriginal.description);
+    }
+
+    try {
+        const docRef = doc(db, 'usuarios', USER_ID, 'movimientos', id);
+        await updateDoc(docRef, updateData);
+        
+        closeEditModal();
+        if (typeof fetchTransactions === 'function') await fetchTransactions();
+        
+    } catch (e) {
+        console.error("Error al actualizar:", e);
+        alert("Error: " + e.message);
+    }
+};
+
+// --- FUNCIÓN PARA LLENAR LOS SELECTS DE UNIDADES ---
+window.fillUnitSelects = () => {
+    // Buscamos los selectores en el HTML (asegúrate de que los IDs coincidan)
+    const unitSelect = document.getElementById('trans-unit');
+    
+    // Si no existen en la vista actual, salimos de la función
+    if (!unitSelect) return;
+
+    // Limpiamos las opciones actuales y ponemos una por defecto
+    unitSelect.innerHTML = '<option value="" disabled selected>Seleccionar Unidad</option>';
+
+    // Recorremos el array de unidadesConfig (que tienes al inicio de tu JS)
+    unidadesConfig.forEach(unidad => {
+        const option = document.createElement('option');
+        option.value = unidad;
+        option.textContent = unidad;
+        unitSelect.appendChild(option);
+    });
+};
+
+// --- 1. NAVEGACIÓN ENTRE VISTAS ---
+window.showView = (viewName) => {
+    // 1. Ocultar todas las secciones
+    const views = ['dashboard', 'income', 'expense', 'history', 'settings'];
+    views.forEach(v => {
+        const section = document.getElementById(`view-${v}`);
+        if (section) section.classList.add('hidden');
+    });
+
+    // 2. Mostrar la sección seleccionada
+    const target = document.getElementById(`view-${viewName}`);
+    if (target) {
+        target.classList.remove('hidden');
+        window.scrollTo(0, 0);
+    }
+
+    // 3. ACTUALIZAR COLORES DE LA BARRA DE NAVEGACIÓN (Diseño Horizonte)
+    const navButtons = {
+        'dashboard': 'nav-home',
+        'history': 'nav-reports',
+        'settings': 'nav-settings'
+    };
   
-  balanceEl.style.color = balanceTotal < 0 ? 'var(--danger)' : 'var(--text-main)';
-  
-  totalIncomeEl.textContent = `+L ${ingresosTotales.toFixed(2)}`;
-  totalExpensesEl.textContent = `-L ${gastosTotales.toFixed(2)}`;
+  // Dentro de window.showView para 'income' o 'expense'
+const hoy = new Date().toISOString().split('T')[0];
+if (document.getElementById('in-date')) document.getElementById('in-date').value = hoy;
+if (document.getElementById('ex-date')) document.getElementById('ex-date').value = hoy;
+
+    // Primero: Apagamos todos los botones (Gris Slate y opacidad baja)
+    Object.values(navButtons).forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            // Quitamos opacidad total y ponemos opacidad baja
+            btn.classList.remove('opacity-100');
+            btn.classList.add('opacity-40');
+            
+            const svg = btn.querySelector('svg');
+            const span = btn.querySelector('span');
+
+            if (svg) {
+                // Quitamos el color naranja y el brillo de todos
+                svg.classList.remove('text-indigo-300/90');
+                svg.classList.add('text-slate-400');
+                svg.style.color = ''; // Borra el naranja manual
+                svg.style.filter = 'none'; // Borra el brillo manual
+            }
+            if (span) {
+                span.classList.remove('text-indigo-300/90');
+                span.classList.add('text-slate-400');
+                span.style.color = ''; // Borra el naranja manual
+            }
+        }
+    });
+
+    // Segundo: Encendemos el botón activo (Verde Esmeralda y opacidad total)
+    const activeId = navButtons[viewName];
+    if (activeId) {
+        const activeBtn = document.getElementById(activeId);
+        activeBtn.classList.remove('opacity-40');
+        activeBtn.classList.add('opacity-100');
+        
+        const icon = activeBtn.querySelector('svg');
+        const text = activeBtn.querySelector('span');
+        
+        if (icon) {
+            icon.classList.remove('text-slate-400');
+            icon.classList.add('text-indigo-300/90');
+            // Aplicamos el color naranja directamente por si Tailwind tiene conflictos
+            icon.style.color = '#a5b4fc'; 
+            icon.style.filter = 'drop-shadow(0 0 10px rgba(165, 180, 252, 0.4))'; // <--- NUEVO COLOR (ÍNDIGO LUMÍNICO)
+        }
+        if (text) {
+            text.classList.remove('text-slate-400');
+            text.classList.add('text-indigo-300/90');
+            text.style.color = '#a5b4fc';
+        }
+    }
+
+    // --- 4. LÓGICA DE CARGA DE DATOS ---
+    if (viewName === 'history') renderHistory();
+    if (viewName === 'settings') renderSettings();
+    
+    if (viewName === 'expense') {
+        prepararVistaGastos();
+        // CORRECCIÓN: Agregamos la validación para que no dé error si no existe
+        if (typeof fillUnitSelects === 'function') {
+            fillUnitSelects();
+        } else {
+            console.warn("La función fillUnitSelects no está definida aún.");
+        }
+    }
+    
+    if (viewName === 'income') {
+        // Esta parte ya la tenías bien protegida
+        if (typeof fillUnitSelects === 'function') fillUnitSelects();
+        
+        const inAmount = document.getElementById('in-amount');
+        if (inAmount) inAmount.value = '';
+        
+        const inUnit = document.getElementById('in-unit');
+        const inCat = document.getElementById('in-category');
+        if (inUnit) inUnit.selectedIndex = 0;
+        if (inCat) inCat.selectedIndex = 0;
+    }
+};
+
+window.setReportSubView = (type) => {
+    reportSubView = type;
+    
+    // Cambiar estilos de los botones (Estilo de la imagen)
+    const btnInc = document.getElementById('btn-report-inc');
+    const btnExp = document.getElementById('btn-report-exp');
+    
+    if (type === 'income') {
+        btnInc.className = "flex-1 py-2 rounded-xl font-bold text-green-600 bg-white shadow-sm";
+        btnExp.className = "flex-1 py-2 rounded-xl font-bold text-slate-400";
+    } else {
+        btnExp.className = "flex-1 py-2 rounded-xl font-bold text-red-600 bg-white shadow-sm";
+        btnInc.className = "flex-1 py-2 rounded-xl font-bold text-slate-400";
+    }
+    
+    renderHistory();
+};
+
+// --- 2. RENDERIZADO DEL DASHBOARD (INICIO) ---
+// --- RENDERIZADO DEL DASHBOARD ACTUALIZADO ---
+window.renderDashboard = () => {
+    const listaTransacciones = document.getElementById('lista-transacciones');
+    const balanceTotal = document.getElementById('balance-total');
+    const dashIn = document.getElementById('dash-total-in');
+    const dashOut = document.getElementById('dash-total-out');
+    const filtro = document.getElementById('global-filter')?.value || 'all';
+    
+    if (!listaTransacciones) return;
+
+    // --- FILTRADO DE DATA ---
+    const dataFiltrada = localTransactions.filter(t => {
+        if (filtro === 'all') return true;
+        return t.date && t.date.startsWith(filtro);
+    });
+
+    let totalGeneral = 0;
+    let sumaIngresos = 0;
+    let sumaGastos = 0;
+
+    // 1. Procesamos totales sobre la DATA FILTRADA
+    dataFiltrada.forEach((t) => {
+        const monto = parseFloat(t.amount) || 0;
+        if (t.type === 'income') {
+            sumaIngresos += monto;
+            totalGeneral += monto;
+        } else {
+            sumaGastos += monto;
+            totalGeneral -= monto;
+        }
+    });
+
+    // 2. Ordenamos por FECHA y tomamos los 10 más actuales del periodo filtrado
+    const recientes = [...dataFiltrada]
+        .sort((a, b) => {
+            const dateA = new Date((a.date || "2000-01-01") + 'T00:00:00').getTime();
+            const dateB = new Date((b.date || "2000-01-01") + 'T00:00:00').getTime();
+            if (dateB !== dateA) return dateB - dateA;
+            const createA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+            const createB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+            return createB - createA;
+        })
+        .slice(0, 10);
+
+    // 3. Generamos el HTML
+    let html = '';
+    recientes.forEach((t) => {
+        const isInc = t.type === 'income';
+        const monto = parseFloat(t.amount) || 0;
+        const mainText = t.description || t.category;
+        const dateObj = new Date((t.date || "") + 'T00:00:00');
+        const displayDate = t.date ? dateObj.toLocaleDateString('es-HN', {day:'2-digit', month:'2-digit'}) : 'S/F';
+
+        html += `
+            <div class="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-100 flex justify-between items-center mx-1 mb-2 active:scale-[0.98] transition-transform">
+                <div class="flex flex-col min-w-0 flex-1 pr-3">
+                    <p class="text-[11px] font-black text-slate-800 uppercase italic truncate leading-none mb-1">${mainText}</p>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tight flex items-center gap-1">
+                        <span class="${isInc ? 'text-emerald-500' : 'text-red-500'} font-black">${t.category}</span> 
+                        <span class="text-slate-300">•</span> 
+                        <span class="text-blue-500 font-black">${displayDate}</span>
+                    </p>
+                </div>
+                <div class="text-right">
+                    <p class="font-black text-sm ${isInc ? 'text-emerald-600' : 'text-red-600'} whitespace-nowrap leading-none">
+                        ${isInc ? '+' : '-'} L ${monto.toLocaleString('en-US', {minimumFractionDigits: 2})}
+                    </p>
+                </div>
+            </div>`;
+    });
+
+    listaTransacciones.innerHTML = html || `<p class="text-center py-10 text-slate-400 text-[10px] font-black uppercase">Sin movimientos en este periodo</p>`;
+    
+    if (balanceTotal) balanceTotal.innerText = `L ${totalGeneral.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+    if (dashIn) dashIn.innerText = `L ${sumaIngresos.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+    if (dashOut) dashOut.innerText = `L ${sumaGastos.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
 }
 
-// Guardar en LocalStorage y refrescar pantalla
-function sincronizarApp() {
-  localStorage.setItem('transactions', JSON.stringify(transactions));
-  calcularYRenderizar();
+// --- 3. RENDERIZADO DE HISTORIAL AGRUPADO ---
+window.renderHistory = function() {
+    const container = document.getElementById('historial-agrupado');
+    const reportBalance = document.getElementById('report-balance-caja');
+    
+    // IDs de los montos en los botones (asegúrate de que coincidan con el HTML)
+    const tabIn = document.getElementById('tab-total-in');
+    const tabOut = document.getElementById('tab-total-out');
+    
+    const filtro = document.getElementById('global-filter')?.value || 'all';
+    if (!container) return;
+
+    // 1. FILTRADO INICIAL: Periodo Global
+    const dataFiltradaPeriodo = localTransactions.filter(t => {
+        if (filtro === 'all') return true;
+        return t.date && t.date.startsWith(filtro);
+    });
+
+    // 2. Cálculo de Totales para Botones y Balance
+    let sumaIn = 0;
+    let sumaOut = 0;
+
+    dataFiltradaPeriodo.forEach(t => {
+        const amt = parseFloat(t.amount) || 0;
+        if (t.type === 'income') sumaIn += amt;
+        else sumaOut += amt;
+    });
+
+    // 3. Insertar montos en los botones de la subvista
+    if (tabIn) tabIn.innerText = `L ${sumaIn.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+    if (tabOut) tabOut.innerText = `L ${sumaOut.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+
+    // 4. Balance del periodo filtrado
+    let balanceTotal = sumaIn - sumaOut;
+    if (reportBalance) {
+        reportBalance.innerText = `L ${balanceTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+    }
+
+    // 5. Filtrado por tipo (Ingreso/Gasto) para la lista visual
+    const filteredByType = dataFiltradaPeriodo.filter(t => t.type === reportSubView);
+    const groups = {};
+
+    filteredByType.forEach(t => {
+        const dateStr = t.date || new Date().toISOString().split('T')[0];
+        const dateObj = new Date(dateStr + 'T00:00:00');
+        const year = dateObj.getFullYear();
+        const month = dateObj.toLocaleString('es-HN', { month: 'long' }).toUpperCase();
+        
+        if (!groups[year]) groups[year] = {};
+        if (!groups[year][month]) groups[year][month] = [];
+        groups[year][month].push({...t, dateObj: dateObj});
+    });
+
+    let html = '';
+    const sortedYears = Object.keys(groups).sort((a, b) => b - a);
+
+    sortedYears.forEach(year => {
+        html += `
+            <div class="flex items-center gap-4 my-8 px-2">
+                <div class="h-[1px] flex-1 bg-slate-200"></div>
+                <span class="text-2xl font-black text-slate-300 italic tracking-tighter">${year}</span>
+                <div class="h-[1px] flex-1 bg-slate-200"></div>
+            </div>`;
+        
+        const mesesNombres = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+        const sortedMonths = Object.keys(groups[year]).sort((a, b) => mesesNombres.indexOf(b) - mesesNombres.indexOf(a));
+
+        sortedMonths.forEach(month => {
+            html += `<h3 class="text-[10px] font-black uppercase text-slate-400 ml-4 border-l-4 border-blue-500 pl-3 italic mb-4 tracking-[0.2em]">${month}</h3><div class="space-y-3 mb-10">`;
+            
+            groups[year][month].sort((a, b) => b.dateObj - a.dateObj).forEach(t => {
+                const isInc = t.type === 'income';
+                html += `
+                <div class="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-100 flex justify-between items-center mx-2">
+                    <div class="flex flex-col min-w-0 flex-1 pr-3">
+                        <p class="text-[11px] font-black text-slate-800 uppercase italic truncate mb-1">${t.description || t.category}</p>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                            <span class="${isInc ? 'text-green-500' : 'text-red-500'} font-black">${t.category}</span> 
+                            <span class="text-slate-300">•</span> 
+                            <span class="text-blue-500 font-black">${t.unit || 'S/U'}</span>
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="text-right">
+                            <p class="font-black text-sm ${isInc ? 'text-green-600' : 'text-red-600'}">L ${parseFloat(t.amount).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
+                            <p class="text-[8px] font-bold text-slate-400 uppercase mt-1">${t.dateObj.toLocaleDateString('es-HN', {day:'2-digit', month:'2-digit'})}</p>
+                        </div>
+                        <div class="flex flex-col gap-1 border-l border-slate-50 pl-2">
+                            <button onclick="editTransaction('${t.id}')" class="p-2 rounded-xl bg-slate-50"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-orange-500"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
+                            <button onclick="deleteTransaction('${t.id}')" class="p-2 rounded-xl bg-slate-50"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-red-500"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            html += `</div>`;
+        });
+    });
+
+    container.innerHTML = html || '<p class="text-center py-20 text-slate-400 font-bold uppercase text-[10px]">No hay registros en este periodo</p>';
+    if (typeof renderReportBreakdown === 'function') renderReportBreakdown();
 }
 
-// Inicialización inicial al cargar el CodePen
-calcularYRenderizar();
+
+// --- AÑADIR NUEVA UNIDAD ---
+window.addUnit = async () => {
+    const input = document.getElementById('new-unit-input');
+    const val = input.value.trim();
+    
+    if (!val) return alert("Escribe el nombre de la unidad");
+
+    // Evitar duplicados
+    if (unidadesConfig.includes(val)) return alert("Esta unidad ya existe");
+
+    unidadesConfig.push(val); // Añadir al array local
+    await saveConfig();       // Guardar en Firebase
+    input.value = '';         // Limpiar input
+    renderSettings();         // Refrescar lista visual
+    updateSelects();          // Refrescar selectores de formularios
+};
+
+window.addCatIngreso = async () => {
+    const input = document.getElementById('new-cat-in-input');
+    const val = input.value.trim();
+    if (!val) return alert("Escribe el nombre");
+    if (catIngresos.includes(val)) return alert("Ya existe");
+
+    catIngresos.push(val);
+    await saveConfig(); // Asegúrate de actualizar saveConfig para incluir catIngresos
+    input.value = '';
+    renderSettings();
+    updateSelects();
+};
+
+// --- AÑADIR NUEVA CATEGORÍA ---
+window.addCategory = async () => {
+    const input = document.getElementById('new-cat-input');
+    const val = input.value.trim();
+
+    if (!val) return alert("Escribe el nombre de la categoría");
+
+    // Evitar duplicados
+    if (catEgresos.includes(val)) return alert("Esta categoría ya existe");
+
+    catEgresos.push(val);     // Añadir al array local
+    await saveConfig();       // Guardar en Firebase
+    input.value = '';         // Limpiar input
+    renderSettings();         // Refrescar lista visual
+    updateSelects();          // Refrescar selectores de formularios
+};
+// --- 4. GESTIÓN DE CONFIGURACIÓN (UNIDADES Y CAT) ---
+async function loadConfig() {
+    const docRef = doc(db, 'usuarios', USER_ID, 'config', 'preferencias');
+    try {
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+            const data = snap.data();
+            if (data.unidades) unidadesConfig = data.unidades;
+            if (data.catEgresos) catEgresos = data.catEgresos;
+            if (data.catIngresos) catIngresos = data.catIngresos;
+        }
+    } catch (e) {
+        console.error("Error cargando configuración:", e);
+    }
+    // ESTO ES CLAVE: Actualiza la interfaz con lo que sea que haya (Firebase o valores por defecto)
+    updateSelects();
+    renderSettings();
+}
+
+function renderSettings() {
+    const unitList = document.getElementById('lista-unidades-ajustes');
+    const catList = document.getElementById('lista-categorias-ajustes');
+
+    if (unitList) {
+    unitList.innerHTML = unidadesConfig.map((u, i) => `
+        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <span class="text-xs font-bold text-slate-600 uppercase italic">${u}</span>
+            <button onclick="deleteUnit(${i})" 
+                    class="p-2 rounded-lg transition-all active:scale-90 hover:bg-red-50 group">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" 
+                     class="text-red-400 group-hover:text-red-600 transition-colors">
+                    <path d="M3 6h18"/>
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                </svg>
+            </button>
+        </div>`).join('');
+}
+
+  const catInList = document.getElementById('lista-cat-ingresos-ajustes');
+    if (catInList) {
+        catInList.innerHTML = catIngresos.map((c, i) => `
+            <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span class="text-xs font-bold text-slate-600 uppercase italic">${c}</span>
+                <button onclick="deleteCatIn(${i})" 
+                        class="p-2 rounded-lg transition-all active:scale-90 hover:bg-red-50 group">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" 
+                         class="text-red-400 group-hover:text-red-600 transition-colors">
+                        <path d="M3 6h18"/>
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                    </svg>
+                </button>
+            </div>`).join('');
+    }
+      
+if (catList) {
+    catList.innerHTML = catEgresos.map((c, i) => `
+        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <span class="text-xs font-bold text-slate-600 uppercase italic">${c}</span>
+            <button onclick="deleteCat(${i})" 
+                    class="p-2 rounded-lg transition-all active:scale-90 hover:bg-red-50 group">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" 
+                     class="text-red-400 group-hover:text-red-600 transition-colors">
+                    <path d="M3 6h18"/>
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                </svg>
+            </button>
+        </div>`).join('');
+    }
+}
+// --- RENDERIZAR DISTRIBUCIÓN DE GASTOS (BARRAS) ---
+// 1. LA FUNCIÓN PRINCIPAL (Sustituye la que tienes)
+window.renderReportBreakdown = () => {
+    const container = document.getElementById('lista-breakdown');
+    const wrapper = document.getElementById('report-breakdown-container');
+    const titleElem = document.getElementById('breakdown-title');
+    const iconElem = document.getElementById('breakdown-icon');
+    
+    // Filtro inteligente
+    const filtro = document.getElementById('global-filter')?.value || 'all';
+    
+    if (!container || !wrapper) return;
+
+    // Filtrar data por Periodo y Tipo
+    const data = localTransactions.filter(t => {
+        const cumpleFecha = (filtro === 'all') || (t.date && t.date.startsWith(filtro));
+        return cumpleFecha && t.type === reportSubView;
+    });
+
+    if (data.length === 0) {
+        wrapper.classList.add('hidden');
+        return;
+    }
+
+    wrapper.classList.remove('hidden');
+    const isIncome = reportSubView === 'income';
+    
+
+    const accentColor = isIncome ? 'text-green-600' : 'text-red-600';
+    const barColor = isIncome ? 'bg-green-500' : 'bg-red-500';
+
+    const mapaUnidades = {};
+    const totalesGlobalesPorCat = {};
+
+    data.forEach(t => {
+        const u = t.unit || 'Sin Unidad';
+        const c = t.category || (isIncome ? 'Sin Contrato' : 'Sin Categoría');
+        const monto = parseFloat(t.amount) || 0;
+
+        if (!mapaUnidades[u]) mapaUnidades[u] = { total: 0, cats: {} };
+        mapaUnidades[u].total += monto;
+        mapaUnidades[u].cats[c] = (mapaUnidades[u].cats[c] || 0) + monto;
+        totalesGlobalesPorCat[c] = (totalesGlobalesPorCat[c] || 0) + monto;
+    });
+
+    let html = '';
+
+  // SECCIÓN B: Resumen Global
+    const totalGeneral = Object.values(totalesGlobalesPorCat).reduce((a, b) => a + b, 0);
+    html += `
+        <div class="mt-8 pt-1 border-t-2 border-dashed border-slate-200">
+            <h4 class="text-[9px] font-black uppercase text-slate-400 mb-4 tracking-widest text-center italic">Resumen Global</h4>
+            <div class="space-y-4">
+                ${window.generarBarrasInternas(totalesGlobalesPorCat, totalGeneral, 'bg-blue-600', 'text-blue-600')}
+            </div>
+        </div>
+    `;
+  
+    // 2. TÍTULO INTERMEDIO (Aquí es donde lo querías)
+    html += `
+        <div class="flex items-center gap-3 py-4 px-2">
+            <span class="text-xl">${isIncome ? '📊' : '📉'}</span>
+            <h2 class="text-[12px] font-black uppercase tracking-widest text-slate-800">
+                ${isIncome ? 'Ingresos por Unidad' : 'Gastos por Unidad'}
+            </h2>
+            <div class="h-[1px] flex-1 bg-slate-200"></div>
+        </div>
+    `;
+
+    // 3. SECCIÓN: Por Unidad (ABAJO)
+    Object.entries(mapaUnidades).sort((a, b) => b[1].total - a[1].total).forEach(([unidad, info]) => {
+        html += `
+            <div class="mb-6 p-5 bg-slate-50 rounded-[2rem] border border-slate-100 shadow-sm">
+                <div class="flex justify-between items-end mb-4 border-b border-slate-200 pb-2 gap-2">
+                    <span class="text-[10px] font-black uppercase text-slate-500 italic truncate min-w-0 pb-1">
+                         ${unidad}
+                    </span>
+                    
+                    <span class="text-[17px] font-black ${accentColor} whitespace-nowrap leading-none tracking-tighter shrink-0">
+                        L ${info.total.toLocaleString('en-US', {minimumFractionDigits: 2})}
+                    </span>
+                </div>
+
+                <div class="space-y-4">
+                    ${window.generarBarrasInternas(info.cats, info.total, barColor, accentColor)}
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+};
+
+// 2. LA FUNCIÓN AUXILIAR (Esta es la que te falta o no encuentra)
+// Le ponemos window. para que sea accesible desde cualquier parte
+window.generarBarrasInternas = (diccionarioCats, totalPadre, colorBarra, colorTexto) => {
+    return Object.entries(diccionarioCats)
+        .sort((a, b) => b[1] - a[1])
+        .map(([cat, monto]) => {
+            const porcentaje = totalPadre > 0 ? (monto / totalPadre) * 100 : 0;
+            return `
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-end">
+                        <div class="flex flex-col">
+                            <span class="text-[9px] font-bold uppercase text-slate-500 leading-none">${cat}</span>
+                            <span class="text-[11px] font-black text-slate-800 tracking-tighter">
+                                L ${monto.toLocaleString('en-US', {minimumFractionDigits: 2})}
+                            </span>
+                        </div>
+                        <span class="text-[10px] font-black ${colorTexto} bg-white px-2 py-0.5 rounded-md border border-slate-100">
+                            ${porcentaje.toFixed(1)}%
+                        </span>
+                    </div>
+                    <div class="w-full h-2 bg-white rounded-full overflow-hidden border border-slate-100 shadow-inner">
+                        <div class="h-full ${colorBarra} transition-all duration-1000" style="width: ${porcentaje}%"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+};
+
+function updateSelects() {
+    const selUnitIn = document.getElementById('in-unit');
+    const selUnitEx = document.getElementById('ex-unit');
+    const selCatEx = document.getElementById('ex-category');
+
+    // Llenar selectores de Unidades (Ingresos y Gastos)
+    const opcionesUnidades = '<option value="">Seleccionar</option>' + 
+        unidadesConfig.map(u => `<option value="${u}">${u}</option>`).join('');
+
+    if (selUnitIn) selUnitIn.innerHTML = opcionesUnidades;
+    if (selUnitEx) selUnitEx.innerHTML = opcionesUnidades;
+  
+    const selectInCat = document.getElementById('in-category');
+    if (selectInCat) {
+        selectInCat.innerHTML = catIngresos.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+    // Llenar selector de Categorías (Gastos)
+    if (selCatEx) {
+        selCatEx.innerHTML = '<option value="">Categoría...</option>' + 
+            catEgresos.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+}
+
+window.deleteUnit = async (index) => {
+    if (confirm(`¿Eliminar la unidad "${unidadesConfig[index]}"?`)) {
+        unidadesConfig.splice(index, 1); // Quitar del array local
+        await saveConfig();              // Guardar en Firebase
+        renderSettings();                // Actualizar lista visual
+        updateSelects();                 // Actualizar menús desplegables
+    }
+};
+
+window.deleteCatIn = async (index) => {
+    if (!confirm("¿Eliminar esta categoría de ingresos?")) return;
+
+    catIngresos.splice(index, 1); // Quitar del array local
+    await saveConfig();           // Guardar cambios en Firebase
+    renderSettings();             // Refrescar lista en Ajustes
+    updateSelects();              // Refrescar selector en el formulario
+};
+
+// --- ELIMINAR CATEGORÍA ---
+window.deleteCat = async (index) => {
+    if (confirm(`¿Eliminar la categoría "${catEgresos[index]}"?`)) {
+        catEgresos.splice(index, 1);     // Quitar del array local
+        await saveConfig();              // Guardar en Firebase
+        renderSettings();                // Actualizar lista visual
+        updateSelects();                 // Actualizar menús desplegables
+    }
+};
+async function saveConfig() {
+    const configRef = doc(db, 'usuarios', USER_ID, 'config', 'preferencias');
+    try {
+        await setDoc(configRef, { 
+            unidades: unidadesConfig, 
+            catEgresos: catEgresos, 
+            catIngresos: catIngresos
+        });
+    } catch (e) {
+        console.error("Error al guardar configuración:", e);
+        alert("No se pudo guardar en la nube.");
+    }
+}
+
+
+function prepararVistaGastos() {
+    const container = document.getElementById('container-categorias-dinamicas');
+    const selectUnidad = document.getElementById('ex-unit');
+    
+    // 1. Limpiar todo
+    container.innerHTML = '';
+    
+    // 2. Crear las tarjetas de gasto (Nota + Monto)
+    catEgresos.forEach(cat => {
+        const div = document.createElement('div');
+        // Estilo de tarjeta para que no se vea amontonado en el iPhone
+        div.className = "bg-slate-50 p-3 rounded-2xl border border-slate-100 space-y-2 mb-1";
+        
+        div.innerHTML = `
+            <div class="flex justify-between items-center px-1">
+                <p class="text-[10px] font-black uppercase text-slate-500">${cat}</p>
+                <span class="text-[9px] text-slate-300 italic font-bold tracking-tighter text-right">LEMPIRAS</span>
+            </div>
+            
+            <div class="flex gap-2">
+                <input type="text" 
+                    data-desc-cat="${cat}" 
+                    placeholder="NOTA O DETALLE..." 
+                    oninput="this.value = this.value.toUpperCase()"
+                    class="expense-desc-input flex-1 p-3 bg-white rounded-xl text-[10px] font-bold outline-none border border-slate-200 focus:ring-2 focus:ring-red-500 uppercase">
+                
+                <div class="w-32 relative">
+                    <input type="number" 
+                        step="0.01"
+                        data-cat="${cat}" 
+                        class="expense-input w-full bg-white p-3 rounded-xl text-right font-black text-red-600 outline-none border border-slate-200 focus:ring-2 focus:ring-red-500" 
+                        placeholder="0.00">
+                </div>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+// --- GUARDAR GASTO CORREGIDO ---
+window.saveMultipleExpenses = async () => {
+    const unit = document.getElementById('ex-unit').value;
+    const date = document.getElementById('ex-date').value; // <--- CAPTURAR FECHA
+    const inputs = document.querySelectorAll('.expense-input'); 
+    
+    if (!unit) return alert("Selecciona una unidad");
+    if (!date) return alert("Selecciona la fecha del gasto"); // <--- VALIDACIÓN
+
+    const batch = [];
+
+    inputs.forEach(input => {
+        const monto = parseFloat(input.value);
+        if (monto > 0) {
+            const categoria = input.dataset.cat;
+            const inputDesc = document.querySelector(`[data-desc-cat="${categoria}"]`);
+            const nota = inputDesc ? inputDesc.value.trim().toUpperCase() : '';
+
+            batch.push({
+                type: 'expense',
+                unit: unit,
+                category: categoria,
+                description: nota || categoria, 
+                amount: monto,
+                date: date, // <--- ASIGNAR LA FECHA SELECCIONADA
+                createdAt: serverTimestamp()
+            });
+        }
+    });
+
+    if (batch.length === 0) return alert("Ingresa al menos un monto");
+
+    try {
+        // Guardamos todos en Firebase
+        for (const gasto of batch) {
+            await addDoc(collection(db, 'usuarios', USER_ID, 'movimientos'), gasto);
+        }
+        
+        // Limpiamos los campos después de guardar
+        document.querySelectorAll('.expense-input, .expense-desc-input').forEach(i => i.value = '');
+        
+        if (typeof fetchTransactions === 'function') await fetchTransactions();
+        showView('dashboard');
+        
+    } catch (e) {
+        alert("Error: " + e.message);
+    }
+};
+
+// --- 6. FUNCIONES DE APOYO ---
+window.setReportSubView = (type) => {
+    reportSubView = type;
+    
+    const btnInc = document.getElementById('btn-report-inc');
+    const btnExp = document.getElementById('btn-report-exp');
+    
+    if (type === 'income') {
+        btnInc.className = "flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest bg-white text-green-600 shadow-sm";
+        btnExp.className = "flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-500";
+    } else {
+        btnExp.className = "flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest bg-white text-red-600 shadow-sm";
+        btnInc.className = "flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-500";
+    }
+    
+    renderHistory();
+};
+
+window.exportToExcel = () => {
+    if (!localTransactions || localTransactions.length === 0) return alert("No hay datos");
+
+    const inputUsuario = prompt("Exportar Mes/Año (ej: MARZO 2026) o deja vacío para TODO:");
+    const filtro = inputUsuario ? inputUsuario.toUpperCase().trim() : null;
+
+    // Encabezados optimizados para Tabla Dinámica
+    // GRUPO servirá para separar Ingresos de Gastos y sumarlos por aparte
+    const headers = ["FECHA", "MES", "AÑO", "UNIDAD", "GRUPO", "CATEGORIA", "DESCRIPCION", "MONTO"];
+    
+    const filteredData = localTransactions.filter(t => {
+        if (!filtro) return true;
+        const dateObj = new Date((t.date || "2000-01-01") + 'T00:00:00');
+        const mesT = dateObj.toLocaleString('es-HN', { month: 'long' }).toUpperCase();
+        const añoT = dateObj.getFullYear().toString();
+        return mesT.includes(filtro) || añoT.includes(filtro) || `${mesT} ${añoT}`.includes(filtro);
+    });
+
+    const rows = filteredData.map(t => {
+        const dateObj = new Date((t.date || "2000-01-01") + 'T00:00:00');
+        const monto = parseFloat(t.amount) || 0;
+        
+        return [
+            t.date,
+            dateObj.toLocaleString('es-HN', { month: 'long' }).toUpperCase(),
+            dateObj.getFullYear(),
+            t.unit || 'S/U',
+            t.type === 'income' ? '1-INGRESOS' : '2-GASTOS', // El número ayuda a ordenar en Excel
+            t.category,
+            (t.description || '').replace(/;/g, ','),
+            t.type === 'income' ? monto : -monto // IMPORTANTE: Negativo para gastos
+        ];
+    });
+
+    let csvContent = "\uFEFF";
+    csvContent += headers.join(";") + "\n";
+    rows.forEach(row => csvContent += row.join(";") + "\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Contabilidad_${filtro || 'General'}.csv`);
+    link.click();
+};
+
+// --- 7. LISTENERS TIEMPO REAL ---
+const q = query(collection(db, 'usuarios', USER_ID, 'movimientos'), orderBy('createdAt', 'desc'));
+
+onSnapshot(q, (snapshot) => {
+    localTransactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    renderDashboard();
+    renderHistory();
+    localTransactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    // 1. Primero actualizamos el selector con los meses reales que vinieron de Firebase
+    window.updateFilterOptions(); 
+    
+    // 2. Luego dibujamos todo lo demás
+    renderDashboard();
+    if (typeof renderHistory === 'function') renderHistory();
+  
+});
+
+// Inicializar
+loadConfig();
