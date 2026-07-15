@@ -1,71 +1,420 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Finanzas Personales</title>
-  <link rel="stylesheet" href="style.css">
-
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  
-  <meta name="apple-mobile-web-app-title" content="FinanzasPro">
-  
-  <link rel="apple-touch-icon" href="https://img.icons8.com/fluent/512/wallet.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="STL Horizonte">
+    <link rel="apple-touch-icon" href="https://img.icons8.com/fluent/512/wallet.png">
+    
+    <title>EDWIN RAMOS | FINANZAS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); }
+        .card-shadow { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        section { animation: fadeIn 0.4s ease-out forwards; }
+     </style>
 </head>
-<body>
+<body class="bg-slate-50">
+    
 
-  <div class="app-container">
-    <header>
-      <h1>Finanzas Personales</h1>
-      <p>Control de ingresos y gastos diarios</p>
+   <div id="app" class="max-w-md mx-auto min-h-screen relative pb-32">
+        
+        <main id="main-content" class="px-5 pt-6">
+            
+            <section id="view-dashboard" class="space-y-6">
+              
+              <div class="px-4 mt-5 mb-6">
+    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2 mb-1 block">Periodo de Visualización</label>
+    <select id="global-filter" onchange="renderDashboard(); renderHistory();" 
+        class="w-full bg-slate-100 border-none rounded-2xl p-3 text-[11px] font-black uppercase text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+        </select>
+</div>
+                
+   <header class="mt-4 relative overflow-hidden bg-[#08121e] rounded-[2rem] p-4 pt-[calc(env(safe-area-inset-top)+0.5rem)] text-white shadow-2xl">
+    <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full -mr-12 -mt-12 blur-2xl"></div>
+    
+    <div class="flex justify-between items-center relative z-10">
+        <div class="flex items-baseline gap-2">
+            <p class="text-[18px] font-black uppercase tracking-wider">
+    <span class="text-white">EDWIN RAMOS</span> 
+    <span class="text-indigo-300/90">FINANZAS</span>
+</p>
+        </div>
+        
+        <a href="index.html" class="bg-white/10 p-2 rounded-lg active:scale-90 transition-transform flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+        </a>
+    </div>
+
+    <div class="mt-1 relative z-10 text-center">
+        <p class="text-[9px] uppercase font-bold text-white tracking-[0.2em] mb-0">Balance General</p>
+        <h2 id="balance-total" class="text-3xl font-black tracking-tighter text-indigo-300/90 leading-tight">L 0.00</h2>
+    </div>
+</header>
+              
+ <div class="grid grid-cols-2 gap-4 px-1">
+    <button onclick="showView('income')" 
+        class="bg-emerald-500 text-white p-6 rounded-[2.5rem] shadow-lg shadow-emerald-100 active:scale-95 transition-all flex flex-col items-center gap-3 group border-b-4 border-emerald-600">
+        <div class="bg-white/20 p-3 rounded-2xl group-hover:rotate-12 transition-transform">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5v14M5 12h14"/>
+            </svg>
+        </div>
+        <span class="text-[12px] font-black uppercase tracking-widest">Ingreso</span>
+    </button>
+    
+    <button onclick="showView('expense')" 
+        class="bg-rose-500 text-white p-6 rounded-[2.5rem] shadow-lg shadow-rose-100 active:scale-95 transition-all flex flex-col items-center gap-3 group border-b-4 border-rose-600">
+        <div class="bg-white/20 p-3 rounded-2xl group-hover:-rotate-12 transition-transform">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14"/>
+            </svg>
+        </div>
+        <span class="text-[12px] font-black uppercase tracking-widest">Gasto</span>
+    </button>
+</div>
+
+                <div class="bg-white rounded-[2rem] p-2 flex gap-2 border border-slate-100 card-shadow">
+                    <div class="flex-1 bg-slate-50 p-4 rounded-[1.5rem] border border-slate-100">
+                        <p class="text-[8px] font-black uppercase text-slate-400 mb-1">Entradas</p>
+                        <p id="dash-total-in" class="text-md font-black text-emerald-600 tracking-tighter">L 0.00</p>
+                    </div>
+                    <div class="flex-1 bg-slate-50 p-4 rounded-[1.5rem] border border-slate-100">
+                        <p class="text-[8px] font-black uppercase text-slate-400 mb-1">Salidas</p>
+                        <p id="dash-total-out" class="text-md font-black text-rose-600 tracking-tighter">L 0.00</p>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center px-2">
+                        <h3 class="text-[11px] font-black uppercase text-slate-400 tracking-widest italic">Actividad Reciente</h3>
+                        <span class="w-8 h-1 bg-slate-200 rounded-full"></span>
+                    </div>
+                    <div id="lista-transacciones" class="space-y-3 pb-4">
+                        </div>
+                </div>
+            </section>
+
+          <section id="view-income" class="hidden h-fit max-h-[85vh] bg-white p-6 rounded-[2.5rem] shadow-2xl flex flex-col border border-slate-100 mb-[100px]" 
+    style="padding-top: calc(1.5rem + env(safe-area-inset-top));">
+    
+    <div class="px-6 pt-6 pb-2 flex justify-between items-center shrink-0 z-20 bg-white">
+        <div>
+            <h2 class="text-xl font-black text-emerald-600 uppercase italic tracking-tighter leading-none">Nuevo Ingreso</h2>
+        </div>
+        <button onclick="showView('dashboard')" class="bg-slate-100 text-slate-500 p-3 rounded-full active:scale-90 transition-transform">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+    </div>
+    
+    <div class="flex-1 overflow-y-auto px-6 space-y-4 custom-scroll pb-10">
+        <div class="bg-emerald-50 p-5 rounded-[2rem] border-2 border-emerald-100 mt-2 shadow-sm">
+            <p class="text-[10px] font-black uppercase text-emerald-600 ml-1 mb-1">Monto en Lps</p>
+            <div class="flex items-center">
+                <span class="text-2xl font-black text-emerald-300 mr-2">L</span>
+                <input type="number" id="in-amount" inputmode="decimal"
+                    class="w-full bg-transparent font-black text-4xl outline-none text-emerald-700 placeholder:text-emerald-200" 
+                    placeholder="0.00">
+            </div>
+        </div>
+        
+        <div>
+            <p class="text-[10px] font-black uppercase text-slate-400 ml-2 mb-1">Descripción</p>
+            <input type="text" id="in-description" 
+                oninput="this.value = this.value.toUpperCase()"
+                class="w-full p-4 bg-slate-50 rounded-2xl font-bold text-[16px] outline-none border-2 border-transparent focus:border-emerald-200 uppercase text-slate-700" 
+                placeholder="EJ: SUELDO XXX, INGRESOS XXX">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <p class="text-[10px] font-black uppercase text-slate-400 ml-2 mb-1">NOMBRE</p>
+                <select id="in-unit" class="w-full p-4 bg-slate-50 rounded-2xl font-bold text-[15px] outline-none appearance-none border-2 border-transparent focus:border-emerald-200 text-slate-700"></select>
+            </div>
+            <div>
+                <p class="text-[10px] font-black uppercase text-slate-400 ml-2 mb-1">Categoría</p>
+                <select id="in-category" class="w-full p-4 bg-slate-50 rounded-2xl font-bold text-[15px] outline-none appearance-none border-2 border-transparent focus:border-emerald-200 text-slate-700"></select>
+            </div>
+        </div>
+
+        <div>
+            <p class="text-[10px] font-black uppercase text-slate-400 ml-2 mb-1">Fecha</p>
+            <input type="date" id="in-date" class="w-full p-4 bg-slate-50 rounded-2xl font-bold text-[16px] outline-none border-2 border-transparent focus:border-emerald-200 text-slate-700">
+        </div>
+
+        <div class="pt-2">
+            <button onclick="saveIncome()" class="w-full bg-emerald-600 text-white py-5 rounded-[1.8rem] font-black uppercase shadow-lg shadow-emerald-100 active:scale-95 transition-all text-sm flex items-center justify-center gap-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                Confirmar Ingreso
+            </button>
+        </div>
+</section>
+
+<section id="view-expense" class="hidden h-fit max-h-[80vh] bg-white rounded-[2.5rem] shadow-2xl flex flex-col border border-slate-100 relative overflow-hidden mb-[100px]"
+    style="padding-top: env(safe-area-inset-top);">
+    
+    <div class="px-6 pt-6 pb-4 flex justify-between items-center shrink-0 bg-white border-b border-slate-50">
+        <div>
+            <h2 class="text-xl font-black text-rose-600 uppercase italic tracking-tighter leading-none">NUEVO GASTO</h2>
+   
+        </div>
+        <button onclick="showView('dashboard')" class="bg-slate-100 text-slate-400 p-2.5 rounded-full active:scale-90 transition-transform">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+    </div>
+    
+    <div class="flex-1 overflow-y-auto px-6 py-4 space-y-5 custom-scroll bg-slate-50/30">
+        
+        <div>
+            <p class="text-[10px] font-black uppercase text-slate-400 ml-2 mb-2">NOMBRE</p>
+            <select id="ex-unit" class="w-full p-4 bg-white rounded-2xl font-bold text-[16px] outline-none border border-slate-200 focus:border-rose-300 text-slate-700 shadow-sm appearance-none"></select>
+        </div>
+
+        <div id="container-categorias-dinamicas" class="space-y-3">
+            </div>
+      
+        <div class="pb-4">
+            <p class="text-[10px] font-black uppercase text-slate-400 ml-2 mb-2">Fecha del Gasto</p>
+            <input type="date" id="ex-date" class="w-full p-4 bg-white rounded-2xl font-bold text-[16px] outline-none border border-slate-200 focus:border-rose-300 text-slate-700 shadow-sm">
+        </div>
+    </div>
+
+    <div class="shrink-0 p-6 bg-white border-t border-slate-50 shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
+        <button onclick="saveMultipleExpenses()" class="w-full bg-rose-600 text-white py-5 rounded-[1.8rem] font-black uppercase shadow-lg shadow-rose-200 active:scale-95 transition-all text-sm flex items-center justify-center gap-3">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            Guardar Gastos
+        </button>
+    </div>
+</section>
+
+           <section id="view-history" class="hidden mt-8 space-y-6 pb-10">
+
+    <header class="mt-4 relative overflow-hidden bg-[#08121e] rounded-[1.5rem] p-4 text-white shadow-2xl border border-slate-800/50">
+
+    <div class="absolute top-0 right-0 w-20 h-20 bg-amber-500/10 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+
+    
+
+    <div class="flex justify-between items-center relative z-10">
+
+        <div class="flex items-center gap-2">
+
+            <h2 class="text-[14px] font-black uppercase tracking-[0.15em] text-slate-200">
+
+                Reporte
+
+            </h2>
+
+            <span class="text-[14px] font-black uppercase tracking-[0.15em] text-indigo-300/90">
+
+                Financiero
+
+            </span>
+
+        </div>
+
+            <button onclick="exportToExcel()" class="bg-emerald-500 text-white px-4 py-3 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 shadow-lg shadow-emerald-900/20 active:scale-95 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span>Excel</span>
+            </button>
+        </div>
     </header>
-
-    <div class="balance-card">
-      <h2>Saldo Disponible</h2>
-      <div class="main-balance" id="balance">L 0.00</div>
-      <div class="summary-container">
-        <div class="summary-item income">
-          <span>Ingresos</span>
-          <p id="total-income">+L 0.00</p>
+    
+    <div class="sticky z-40 bg-slate-50/90 backdrop-blur-xl py-2 mb-2 px-4" style="top: env(safe-area-inset-top);">
+        <div class="flex bg-slate-200/60 p-1.5 rounded-[1.5rem] border border-slate-200">
+            <button id="btn-report-inc" onclick="setReportSubView('income')" 
+                class="flex-1 py-3 rounded-[1.2rem] font-black text-[10px] uppercase tracking-widest bg-white text-emerald-600 shadow-sm transition-all flex flex-col items-center">
+                <span>Ingresos</span>
+                <span id="tab-total-in" class="text-[12px] mt-0.5 block">L 0.00</span>
+            </button>
+            
+            <button id="btn-report-exp" onclick="setReportSubView('expense')" 
+                class="flex-1 py-3 rounded-[1.2rem] font-black text-[10px] uppercase tracking-widest text-slate-500 transition-all flex flex-col items-center">
+                <span>Gastos</span>
+                <span id="tab-total-out" class="text-[12px] mt-0.5 block">L 0.00</span>
+            </button>
         </div>
-        <div class="summary-item expense">
-          <span>Gastos</span>
-          <p id="total-expenses">-L 0.00</p>
-        </div>
-      </div>
     </div>
 
-    <div class="transaction-form">
-      <h3>Nueva Transacción</h3>
-      <form id="form">
-        <div class="form-group">
-          <label for="description">Descripción</label>
-          <input type="text" id="description" placeholder="Ej. Sueldo IHCI, Comida, Pago de energia..." required />
-        </div>
-        <div class="form-group">
-          <label for="amount">Monto (L)</label>
-          <input type="number" id="amount" step="0.01" placeholder="0.00" required />
-        </div>
-        <div class="form-group">
-          <label>Tipo de movimiento</label>
-          <div class="type-buttons">
-            <button type="button" class="type-btn active" data-type="income">Ingreso</button>
-            <button type="button" class="type-btn" data-type="expense">Gasto</button>
-          </div>
-        </div>
-        <button type="submit" class="btn-submit">Agregar Registro</button>
-      </form>
+    <div id="report-breakdown-container" class="hidden bg-white p-3 rounded-[2.5rem] shadow-sm border border-slate-100 mx-4">
+        <div id="lista-breakdown" class="space-y-4"></div>
     </div>
 
-    <div class="history-container">
-      <h3>Historial de Movimientos</h3>
-      <ul id="transaction-list" class="transaction-list">
-        </ul>
+    <div id="historial-agrupado" class="space-y-3 px-4">
+        </div>
+</section>
+     
+            <section id="view-settings" class="hidden mt-8 space-y-6 pb-10">
+                <header class="mt-4 relative overflow-hidden bg-[#08121e] rounded-[1.5rem] p-4 text-white shadow-2xl border border-slate-800/50">
+    <div class="absolute top-0 right-0 w-20 h-20 bg-indigo-500/10 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+    
+    <div class="flex justify-between items-center relative z-10">
+        <div class="flex items-center gap-3">
+            <div class="bg-indigo-500/20 p-2 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+            </div>
+            <div class="flex items-baseline gap-2">
+                <h2 class="text-[14px] font-black uppercase tracking-[0.2em] text-indigo-300/90 italic">
+                    Configuración
+                </h2>
+                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-200">
+                    DEL Sistema
+                </span>
+            </div>
+        </div>
+</header>
+                
+                <div class="bg-white p-6 rounded-[2.5rem] shadow-xl border border-slate-100 space-y-4">
+                    <h3 class="text-[10px] font-black uppercase text-slate-800 tracking-widest italic">Gestionar Personas</h3>
+                    <div id="lista-unidades-ajustes" class="space-y-2 text-slate-600"></div>
+                    <div class="flex gap-2 mt-4">
+                        <input type="text" id="new-unit-input" class="flex-1 bg-slate-100 p-3 rounded-xl text-xs font-bold uppercase outline-none" placeholder="Nueva unidad...">
+                        <button onclick="addUnit()" class="bg-blue-600 text-white p-3 rounded-xl active:scale-90">+</button>
+                    </div>
+                </div>
+<div class="bg-white p-6 rounded-[2.5rem] shadow-xl border border-slate-100 space-y-4">
+    <h3 class="text-[10px] font-black uppercase text-slate-800 tracking-widest italic">Categorías de Ingresos</h3>
+    <div id="lista-cat-ingresos-ajustes" class="space-y-2 text-slate-600"></div>
+    <div class="flex gap-2 mt-4">
+        <input type="text" id="new-cat-in-input" class="flex-1 bg-slate-100 p-3 rounded-xl text-xs font-bold uppercase outline-none" placeholder="Nueva categoría...">
+        <button onclick="addCatIngreso()" class="bg-blue-600 text-white p-3 rounded-xl active:scale-90">+</button>
     </div>
-  </div>
+</div>
+                <div class="bg-white p-6 rounded-[2.5rem] shadow-xl border border-slate-100 space-y-4">
+                    <h3 class="text-[10px] font-black uppercase text-slate-800 tracking-widest italic">Categorías de Gastos</h3>
+                    <div id="lista-categorias-ajustes" class="space-y-2 text-slate-600"></div>
+                    <div class="flex gap-2 mt-4">
+                        <input type="text" id="new-cat-input" class="flex-1 bg-slate-100 p-3 rounded-xl text-xs font-bold uppercase outline-none" placeholder="Nueva categoría...">
+                        <button onclick="addCategory()" class="bg-blue-600 text-white p-3 rounded-xl active:scale-90">+</button>
+                    </div>
+                </div>
+            </section>
+              
+              
 
-  <script src="script.js"></script>
+        </main>
+      
+<div id="modal-edit" class="hidden fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/60 backdrop-blur-sm p-0">
+    <div class="bg-white w-full max-w-md rounded-t-[2.5rem] shadow-2xl flex flex-col max-h-[90vh] border-t border-slate-100" 
+         style="padding-bottom: env(safe-area-inset-bottom);">
+        
+        <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto my-4 shrink-0"></div>
+        
+        <div class="px-6 flex justify-between items-center mb-4 shrink-0">
+            <div>
+                <h2 id="edit-title" class="text-xl font-black uppercase italic tracking-tighter leading-none">Editar</h2>
+                <p id="edit-subtitle" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Modificar información guardada</p>
+            </div>
+            <button onclick="closeEditModal()" class="bg-slate-100 text-slate-500 p-3 rounded-full active:scale-90 transition-transform">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        
+        <div id="edit-main-content" class="flex-1 overflow-y-auto px-6 space-y-5 custom-scroll pb-10">
+            <input type="hidden" id="edit-id">
+
+            <div class="bg-slate-50 p-4 rounded-3xl border border-slate-100">
+                <p class="text-[10px] font-black uppercase text-slate-400 ml-1 mb-2">Unidad / Vehículo</p>
+                <div class="relative">
+                    <select id="edit-unit" class="w-full bg-transparent font-bold text-[16px] outline-none appearance-none text-slate-700 relative z-10"></select>
+                    <div class="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                </div>
+            </div>
+
+            <div id="edit-cat-container" class="space-y-4"></div>
+        </div>
+
+        <div class="p-6 pt-2 bg-white border-t border-slate-50 shrink-0">
+            <button onclick="updateTransactionFirebase()" class="w-full bg-blue-600 text-white py-5 rounded-[1.8rem] font-black uppercase shadow-xl shadow-blue-100 active:scale-95 transition-all text-sm flex items-center justify-center gap-3">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                Guardar Cambios
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Animación suave para el Modal de Edición */
+    @keyframes slide-up {
+        from { transform: translateY(100%); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    .animate-slide-up { animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+
+    /* Brillo sutil para el icono activo */
+    .nav-active svg {
+        filter: drop-shadow(0 0 8px rgba(165, 180, 252, 0.5));
+        color: #a5b4fc !important;
+    }
+    .nav-active span {
+        color: #a5b4fc !important;
+        opacity: 1 !important;
+    }
+</style>
+
+<nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-[#08121e]/90 backdrop-blur-3xl border border-white/5 p-2 flex justify-around items-center z-[60] rounded-[2.5rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6)]">
+    
+    <button id="nav-home" onclick="showView('dashboard')" 
+        class="flex flex-col items-center gap-1 group flex-1 transition-all py-2">
+        <div class="p-1 rounded-2xl group-active:scale-90 transition-transform">
+            <svg class="w-6 h-6 text-indigo-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+            </svg>
+        </div>
+        <span class="text-[8px] font-black uppercase tracking-[0.2em] text-indigo-300 italic">Inicio</span>
+    </button>
+
+    <button id="nav-reports" onclick="showView('history')" 
+        class="flex flex-col items-center gap-1 group flex-1 transition-all py-2 opacity-40">
+        <div class="p-1 rounded-2xl group-active:scale-90 transition-transform">
+            <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+        </div>
+        <span class="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400 italic">Reportes</span>
+    </button>
+
+    <button id="nav-settings" onclick="showView('settings')" 
+        class="flex flex-col items-center gap-1 group flex-1 transition-all py-2 opacity-40">
+        <div class="p-1 rounded-2xl group-active:scale-90 transition-transform">
+            <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+        </div>
+        <span class="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400 italic">Ajustes</span>
+    </button>
+</nav>
+          
+    </div>
+
+    <script type="module" src="contratos.js"></script>
+
+    <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('✅ STL Offline Activo', reg.scope))
+        .catch(err => console.log('❌ Error al registrar SW', err));
+    });
+  }
+</script>
+    
 </body>
 </html>
