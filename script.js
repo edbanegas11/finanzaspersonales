@@ -375,23 +375,27 @@ window.showView = (viewName) => {
         window.scrollTo(0, 0);
     }
 
+    // --- CORRECCIÓN: Colocar la asignación de fecha por defecto en un lugar seguro ---
+    if (viewName === 'income' || viewName === 'expense') {
+        const hoy = new Date().toISOString().split('T')[0];
+        const inDate = document.getElementById('in-date');
+        const exDate = document.getElementById('ex-date');
+        
+        if (inDate) inDate.value = hoy;
+        if (exDate) exDate.value = hoy;
+    }
+
     // 3. ACTUALIZAR COLORES DE LA BARRA DE NAVEGACIÓN (Diseño Horizonte)
     const navButtons = {
         'dashboard': 'nav-home',
         'history': 'nav-reports',
         'settings': 'nav-settings'
     };
-  
-  // Dentro de window.showView para 'income' o 'expense'
-const hoy = new Date().toISOString().split('T')[0];
-if (document.getElementById('in-date')) document.getElementById('in-date').value = hoy;
-if (document.getElementById('ex-date')) document.getElementById('ex-date').value = hoy;
 
     // Primero: Apagamos todos los botones (Gris Slate y opacidad baja)
     Object.values(navButtons).forEach(id => {
         const btn = document.getElementById(id);
         if (btn) {
-            // Quitamos opacidad total y ponemos opacidad baja
             btn.classList.remove('opacity-100');
             btn.classList.add('opacity-40');
             
@@ -399,51 +403,51 @@ if (document.getElementById('ex-date')) document.getElementById('ex-date').value
             const span = btn.querySelector('span');
 
             if (svg) {
-                // Quitamos el color naranja y el brillo de todos
                 svg.classList.remove('text-indigo-300/90');
                 svg.classList.add('text-slate-400');
-                svg.style.color = ''; // Borra el naranja manual
-                svg.style.filter = 'none'; // Borra el brillo manual
+                svg.style.color = ''; 
+                svg.style.filter = 'none'; 
             }
             if (span) {
                 span.classList.remove('text-indigo-300/90');
                 span.classList.add('text-slate-400');
-                span.style.color = ''; // Borra el naranja manual
+                span.style.color = ''; 
             }
         }
     });
 
-    // Segundo: Encendemos el botón activo (Verde Esmeralda y opacidad total)
+    // Segundo: Encendemos el botón activo (Índigo Lumínico y opacidad total)
     const activeId = navButtons[viewName];
     if (activeId) {
         const activeBtn = document.getElementById(activeId);
-        activeBtn.classList.remove('opacity-40');
-        activeBtn.classList.add('opacity-100');
-        
-        const icon = activeBtn.querySelector('svg');
-        const text = activeBtn.querySelector('span');
-        
-        if (icon) {
-            icon.classList.remove('text-slate-400');
-            icon.classList.add('text-indigo-300/90');
-            // Aplicamos el color naranja directamente por si Tailwind tiene conflictos
-            icon.style.color = '#a5b4fc'; 
-            icon.style.filter = 'drop-shadow(0 0 10px rgba(165, 180, 252, 0.4))'; // <--- NUEVO COLOR (ÍNDIGO LUMÍNICO)
-        }
-        if (text) {
-            text.classList.remove('text-slate-400');
-            text.classList.add('text-indigo-300/90');
-            text.style.color = '#a5b4fc';
+        if (activeBtn) {
+            activeBtn.classList.remove('opacity-40');
+            activeBtn.classList.add('opacity-100');
+            
+            const icon = activeBtn.querySelector('svg');
+            const text = activeBtn.querySelector('span');
+            
+            if (icon) {
+                icon.classList.remove('text-slate-400');
+                icon.classList.add('text-indigo-300/90');
+                icon.style.color = '#a5b4fc'; 
+                icon.style.filter = 'drop-shadow(0 0 10px rgba(165, 180, 252, 0.4))'; 
+            }
+            if (text) {
+                text.classList.remove('text-slate-400');
+                text.classList.add('text-indigo-300/90');
+                text.style.color = '#a5b4fc';
+            }
         }
     }
 
     // --- 4. LÓGICA DE CARGA DE DATOS ---
-    if (viewName === 'history') renderHistory();
-    if (viewName === 'settings') renderSettings();
+    if (viewName === 'history' && typeof renderHistory === 'function') renderHistory();
+    if (viewName === 'settings' && typeof renderSettings === 'function') renderSettings();
     
     if (viewName === 'expense') {
-        prepararVistaGastos();
-        // CORRECCIÓN: Agregamos la validación para que no dé error si no existe
+        if (typeof prepararVistaGastos === 'function') prepararVistaGastos();
+        
         if (typeof fillUnitSelects === 'function') {
             fillUnitSelects();
         } else {
@@ -452,12 +456,13 @@ if (document.getElementById('ex-date')) document.getElementById('ex-date').value
     }
     
     if (viewName === 'income') {
-        // Esta parte ya la tenías bien protegida
         if (typeof fillUnitSelects === 'function') fillUnitSelects();
         
         const inAmount = document.getElementById('in-amount');
         if (inAmount) inAmount.value = '';
         
+        // CORRECCIÓN EXTRA: Como simplificamos el formulario de ingresos, 
+        // validamos si "in-unit" existe antes de intentar resetear su índice
         const inUnit = document.getElementById('in-unit');
         const inCat = document.getElementById('in-category');
         if (inUnit) inUnit.selectedIndex = 0;
