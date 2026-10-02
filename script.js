@@ -851,7 +851,7 @@ window.renderReportBreakdown = () => {
         <div class="flex items-center gap-3 py-4 px-2">
             <span class="text-xl">${isIncome ? '📊' : '📉'}</span>
             <h2 class="text-[12px] font-black uppercase tracking-widest text-slate-800">
-                ${isIncome ? 'Ingresos por Unidad' : 'Gastos por Unidad'}
+                ${isIncome ? 'Ingresos por Persona' : 'Gastos por Persona'}
             </h2>
             <div class="h-[1px] flex-1 bg-slate-200"></div>
         </div>
