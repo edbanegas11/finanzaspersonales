@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Finanzas Personales">
-    
+    <link rel="apple-touch-icon" href="logo.png">
     
     <title>EDWIN RAMOS | FINANZAS</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,7 +19,6 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         section { animation: fadeIn 0.4s ease-out forwards; }
      </style>
-    <link rel="apple-touch-icon" href="https://img.icons8.com/fluent/512/wallet.png">
 </head>
 <body class="bg-slate-50">
     
@@ -328,7 +328,7 @@
             <input type="hidden" id="edit-id">
 
             <div class="bg-slate-50 p-4 rounded-3xl border border-slate-100">
-                <p class="text-[10px] font-black uppercase text-slate-400 ml-1 mb-2">Unidad / Vehículo</p>
+                <p class="text-[10px] font-black uppercase text-slate-400 ml-1 mb-2">Persona</p>
                 <div class="relative">
                     <select id="edit-unit" class="w-full bg-transparent font-bold text-[16px] outline-none appearance-none text-slate-700 relative z-10"></select>
                     <div class="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
@@ -404,7 +404,7 @@
           
     </div>
 
-    <script type="module" src="script.js"></script>
+    <script type="module" src="contratos.js"></script>
 
     <script>
   if ('serviceWorker' in navigator) {
