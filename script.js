@@ -348,7 +348,7 @@ window.fillUnitSelects = () => {
     if (!unitSelect) return;
 
     // Limpiamos las opciones actuales y ponemos una por defecto
-    unitSelect.innerHTML = '<option value="" disabled selected>Seleccionar Unidad</option>';
+    unitSelect.innerHTML = '<option value="" disabled selected>Seleccionar Persona</option>';
 
     // Recorremos el array de unidadesConfig (que tienes al inicio de tu JS)
     unidadesConfig.forEach(unidad => {
