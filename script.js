@@ -348,7 +348,7 @@ window.fillUnitSelects = () => {
     if (!unitSelect) return;
 
     // Limpiamos las opciones actuales y ponemos una por defecto
-    unitSelect.innerHTML = '<option value="" disabled selected>Seleccionar Persona</option>';
+    unitSelect.innerHTML = '<option value="" disabled selected>Seleccionar Unidad</option>';
 
     // Recorremos el array de unidadesConfig (que tienes al inicio de tu JS)
     unidadesConfig.forEach(unidad => {
@@ -387,59 +387,59 @@ window.showView = (viewName) => {
 
     // 3. ACTUALIZAR COLORES DE LA BARRA DE NAVEGACIÓN (Diseño Horizonte)
     const navButtons = {
-        'dashboard': 'nav-home',
-        'history': 'nav-reports',
-        'settings': 'nav-settings'
-    };
+    'dashboard': 'nav-home',
+    'history': 'nav-reports',
+    'settings': 'nav-settings'
+};
 
-    // Primero: Apagamos todos los botones (Gris Slate y opacidad baja)
-    Object.values(navButtons).forEach(id => {
-        const btn = document.getElementById(id);
-        if (btn) {
-            btn.classList.remove('opacity-100');
-            btn.classList.add('opacity-40');
-            
-            const svg = btn.querySelector('svg');
-            const span = btn.querySelector('span');
+// Primero: Apagamos todos los botones (Gris Slate y opacidad baja)
+Object.values(navButtons).forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) {
+        btn.classList.remove('opacity-100');
+        btn.classList.add('opacity-40');
+        
+        const svg = btn.querySelector('svg');
+        const span = btn.querySelector('span');
 
-            if (svg) {
-                svg.classList.remove('text-indigo-300/90');
-                svg.classList.add('text-slate-400');
-                svg.style.color = ''; 
-                svg.style.filter = 'none'; 
-            }
-            if (span) {
-                span.classList.remove('text-indigo-300/90');
-                span.classList.add('text-slate-400');
-                span.style.color = ''; 
-            }
+        if (svg) {
+            svg.classList.remove('text-orange-300');
+            svg.classList.add('text-slate-300');
+            svg.style.color = ''; 
+            svg.style.filter = 'none'; 
         }
-    });
-
-    // Segundo: Encendemos el botón activo (Índigo Lumínico y opacidad total)
-    const activeId = navButtons[viewName];
-    if (activeId) {
-        const activeBtn = document.getElementById(activeId);
-        if (activeBtn) {
-            activeBtn.classList.remove('opacity-40');
-            activeBtn.classList.add('opacity-100');
-            
-            const icon = activeBtn.querySelector('svg');
-            const text = activeBtn.querySelector('span');
-            
-            if (icon) {
-                icon.classList.remove('text-slate-400');
-                icon.classList.add('text-indigo-300/90');
-                icon.style.color = '#a5b4fc'; 
-                icon.style.filter = 'drop-shadow(0 0 10px rgba(165, 180, 252, 0.4))'; 
-            }
-            if (text) {
-                text.classList.remove('text-slate-400');
-                text.classList.add('text-indigo-300/90');
-                text.style.color = '#a5b4fc';
-            }
+        if (span) {
+            span.classList.remove('text-orange-300');
+            span.classList.add('text-slate-300');
+            span.style.color = ''; 
         }
     }
+});
+
+// Segundo: Encendemos el botón activo (Naranja Coral y opacidad total)
+const activeId = navButtons[viewName];
+if (activeId) {
+    const activeBtn = document.getElementById(activeId);
+    if (activeBtn) {
+        activeBtn.classList.remove('opacity-40');
+        activeBtn.classList.add('opacity-100');
+        
+        const icon = activeBtn.querySelector('svg');
+        const text = activeBtn.querySelector('span');
+        
+        if (icon) {
+            icon.classList.remove('text-slate-300');
+            icon.classList.add('text-orange-300');
+            icon.style.color = '#fdba74'; // Hexadecimal de orange-300
+            icon.style.filter = 'drop-shadow(0 0 10px rgba(253, 186, 116, 0.4))'; // Sombra luminosa naranja
+        }
+        if (text) {
+            text.classList.remove('text-slate-300');
+            text.classList.add('text-orange-300');
+            text.style.color = '#fdba74';
+        }
+    }
+}
 
     // --- 4. LÓGICA DE CARGA DE DATOS ---
     if (viewName === 'history' && typeof renderHistory === 'function') renderHistory();
@@ -838,7 +838,7 @@ window.renderReportBreakdown = () => {
   // SECCIÓN B: Resumen Global
     const totalGeneral = Object.values(totalesGlobalesPorCat).reduce((a, b) => a + b, 0);
     html += `
-        <div class="mt-8 pt-1 border-t-2 border-dashed border-slate-200">
+        <div class="mt-1 pt-1 border-t-2 border-dashed border-slate-200">
             <h4 class="text-[9px] font-black uppercase text-slate-400 mb-4 tracking-widest text-center italic">Resumen Global</h4>
             <div class="space-y-4">
                 ${window.generarBarrasInternas(totalesGlobalesPorCat, totalGeneral, 'bg-blue-600', 'text-blue-600')}
